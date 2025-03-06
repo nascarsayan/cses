@@ -215,7 +215,7 @@ class CSESProblemScraper:
         
         # Create a flat list of all problems for processing
         all_problems: List[Dict[str, str]] = []
-        for category, problems in problems_by_category.items():
+        for _, problems in problems_by_category.items():
             all_problems.extend(problems)
         
         logger.info("Processing problems...")
