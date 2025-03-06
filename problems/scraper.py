@@ -6,7 +6,7 @@ import logging
 import json
 import re
 import html2text
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -19,6 +19,21 @@ PROBLEMS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)))
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(PROJECT_ROOT, "config.yaml")
 
+# Category mapping for ordering (add more categories as they appear)
+CATEGORY_ORDER = {
+    "Introductory Problems": "01",
+    "Sorting and Searching": "02",
+    "Dynamic Programming": "03",
+    "Graph Algorithms": "04",
+    "Range Queries": "05",
+    "Tree Algorithms": "06",
+    "Mathematics": "07",
+    "String Algorithms": "08",
+    "Geometry": "09",
+    "Advanced Techniques": "10",
+    "Additional Problems": "11"
+}
+
 class CSESProblemScraper:
     def __init__(self) -> None:
         self.session = requests.Session()
@@ -26,8 +41,8 @@ class CSESProblemScraper:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
     
-    def get_problem_list(self) -> Optional[List[Dict[str, str]]]:
-        """Scrape the problem list from the CSES website."""
+    def get_problem_list(self) -> Optional[Dict[str, List[Dict[str, str]]]]:
+        """Scrape the problem list from the CSES website and organize by category."""
         logger.info("Fetching problem list from CSES...")
         response = self.session.get(PROBLEM_LIST_URL, headers=self.headers)
         if response.status_code != 200:
@@ -35,10 +50,11 @@ class CSESProblemScraper:
             return None
         
         soup = BeautifulSoup(response.text, 'html.parser')
-        problems: List[Dict[str, str]] = []
+        problems_by_category: Dict[str, List[Dict[str, Any]]] = {}
         
         # Find all problem categories
         categories = soup.find_all('h2')
+        total_problems = 0
         
         for category in categories:
             category_name = category.text.strip()
@@ -49,11 +65,20 @@ class CSESProblemScraper:
             problem_list_elem = category.find_next('ul')
             if not problem_list_elem:
                 continue
+            
+            # Get category order number or default to "00" if not found
+            category_order = CATEGORY_ORDER.get(category_name, "00")
+            ordered_category_name = f"{category_order}_{self._sanitize_filename(category_name)}"
                 
             # Find all li elements in the ul
             problem_items: List[Tag] = problem_list_elem.find_all('li') # type: ignore
             
-            for item in problem_items:
+            # Initialize category in dictionary
+            if ordered_category_name not in problems_by_category:
+                problems_by_category[ordered_category_name] = []
+                
+            # Process problems in this category
+            for i, item in enumerate(problem_items, 1):
                 # Find the link inside the li
                 link_elem = item.find('a')
                 if not link_elem or not hasattr(link_elem, 'href'):
@@ -72,15 +97,21 @@ class CSESProblemScraper:
                     # Get the text from the link
                     problem_title = link_elem.text.strip()
                     
-                    problems.append({
+                    # Add problem order number (zero-padded)
+                    problem_order = f"{i:02d}"
+                    
+                    problems_by_category[ordered_category_name].append({
                         'id': problem_id,
+                        'order': problem_order,
                         'title': problem_title,
                         'category': category_name,
+                        'ordered_category': ordered_category_name,
                         'url': problem_url
                     })
+                    total_problems += 1
         
-        logger.info(f"Found {len(problems)} problems across {len(categories) - 1} categories")
-        return problems
+        logger.info(f"Found {total_problems} problems across {len(problems_by_category)} categories")
+        return problems_by_category
     
     def get_problem_content(self, problem_url: str) -> Optional[str]:
         """Download the problem statement HTML."""
@@ -129,13 +160,13 @@ class CSESProblemScraper:
             return f"# {problem_title}\n\n[Original problem]({problem_title})\n\n(Error converting to Markdown - please check the original problem)"
     
     def save_markdown(self, problem: Dict[str, str], markdown_content: str) -> str:
-        """Save the markdown content to file."""
+        """Save the markdown content to file with ordered naming."""
         # Create directory structure if it doesn't exist
-        category_dir = os.path.join(PROBLEMS_DIR, self._sanitize_filename(problem['category']))
+        category_dir = os.path.join(PROBLEMS_DIR, problem['ordered_category'])
         os.makedirs(category_dir, exist_ok=True)
         
-        # Create filename from problem title
-        filename = f"{problem['id']}_{self._sanitize_filename(problem['title'])}.md"
+        # Create filename from problem order, id and title
+        filename = f"{problem['order']}_{problem['id']}_{self._sanitize_filename(problem['title'])}.md"
         filepath = os.path.join(category_dir, filename)
         
         with open(filepath, 'w', encoding='utf-8') as f:
@@ -143,8 +174,10 @@ class CSESProblemScraper:
             f.write("---\n")
             f.write(f"title: \"{problem['title']}\"\n")
             f.write(f"category: \"{problem['category']}\"\n")
-            f.write(f"url: \"{problem['url']}\"\n")
+            f.write(f"ordered_category: \"{problem['ordered_category']}\"\n")
+            f.write(f"order: {problem['order']}\n")
             f.write(f"id: {problem['id']}\n")
+            f.write(f"url: \"{problem['url']}\"\n")
             f.write("---\n\n")
             f.write(markdown_content)
         
@@ -157,12 +190,12 @@ class CSESProblemScraper:
     
     def check_if_exists(self, problem: Dict[str, str]) -> bool:
         """Check if markdown file for problem already exists."""
-        category_dir = os.path.join(PROBLEMS_DIR, self._sanitize_filename(problem['category']))
+        category_dir = os.path.join(PROBLEMS_DIR, problem['ordered_category'])
         if not os.path.exists(category_dir):
             return False
             
-        # Check for any file starting with the problem ID
-        filename_prefix = f"{problem['id']}_"
+        # Check for file with the problem order and ID pattern
+        filename_prefix = f"{problem['order']}_{problem['id']}_"
         for filename in os.listdir(category_dir):
             if filename.startswith(filename_prefix) and filename.endswith('.md'):
                 return True
@@ -171,23 +204,28 @@ class CSESProblemScraper:
     
     def process_all_problems(self) -> None:
         """Process all problems from CSES."""
-        problems = self.get_problem_list()
-        if not problems:
+        problems_by_category = self.get_problem_list()
+        if not problems_by_category:
             logger.error("Failed to get problem list")
             return
         
         # Save problem list as JSON for reference
         with open(os.path.join(PROBLEMS_DIR, 'problem_list.json'), 'w', encoding='utf-8') as f:
-            json.dump(problems, f, indent=2)
+            json.dump(problems_by_category, f, indent=2)
+        
+        # Create a flat list of all problems for processing
+        all_problems: List[Dict[str, str]] = []
+        for category, problems in problems_by_category.items():
+            all_problems.extend(problems)
         
         logger.info("Processing problems...")
-        for i, problem in enumerate(problems):
+        for i, problem in enumerate(all_problems):
             try:
                 if self.check_if_exists(problem):
-                    logger.info(f"[{i+1}/{len(problems)}] Problem '{problem['title']}' already exists, skipping")
+                    logger.info(f"[{i+1}/{len(all_problems)}] Problem '{problem['title']}' already exists, skipping")
                     continue
                 
-                logger.info(f"[{i+1}/{len(problems)}] Processing problem '{problem['title']}'")
+                logger.info(f"[{i+1}/{len(all_problems)}] Processing problem '{problem['title']}'")
                 html_content = self.get_problem_content(problem['url'])
                 if not html_content:
                     logger.warning(f"Couldn't get content for {problem['title']}, skipping")
