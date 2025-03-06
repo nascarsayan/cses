@@ -6,7 +6,7 @@
 Count unique elements in an array using a Set data structure. The Set automatically handles duplicates and gives us the count of distinct elements.
 
 ## Problem Overview
-Given a list of n integers, we need to find how many distinct (unique) values are present in the list.
+Given a list of $ n $ integers, we need to find how many distinct (unique) values are present in the list.
 
 ## Solution Approach
 The problem introduces us to one of the most fundamental applications of the Set data structure. Here's why this approach is elegant:
@@ -32,12 +32,12 @@ The problem introduces us to one of the most fundamental applications of the Set
    - How to get input into a vector and convert it to a set
 
 ## Common Pitfalls
-1. Don't try to manually check for duplicates using nested loops - O(n²) will be too slow
+1. Don't try to manually check for duplicates using nested loops - $ O(n²) $ will be too slow
 2. Don't sort and then count unique elements - using Set is more straightforward
 
 ## Complexity
-- Time Complexity: O(n log n)
-- Space Complexity: O(n)
+- Time Complexity: $ O(n log n) $
+- Space Complexity: $ O(n) $
 
 ## Extended Learning
 - This problem can also be solved using:
