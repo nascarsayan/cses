@@ -59,3 +59,4 @@ ENV/
 # Debug logs
 *.log
 cmake-build-debug/
+config.yaml

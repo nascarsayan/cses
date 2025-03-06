@@ -1,0 +1,5 @@
+# Azure OpenAI configuration
+- endpoint: "https://contoso.openai.azure.com/"
+  key: "key"
+  chatDeployment: "gpt-4o"
+  version: "2024-08-01-preview"
