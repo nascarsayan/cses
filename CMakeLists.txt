@@ -4,5 +4,5 @@ project(cses)
 set(CMAKE_CXX_STANDARD 20)
 
 add_executable(cses
-        04_graph/18.cpp
+        solutions/04_Graph_Algorithms/19_1750_Planets_Queries_I.cpp
 )

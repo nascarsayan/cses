@@ -60,3 +60,4 @@ ENV/
 *.log
 cmake-build-debug/
 config.yaml
+input.txt
