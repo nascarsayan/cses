@@ -2,15 +2,10 @@
 
 #include <algorithm>
 #include <iostream>
-#include <map>
-#include <set>
-#include <vector>
-#include <deque>
 #include <cmath>
 
 using namespace std;
 using lli = long long int;
-using pii = pair<lli, lli>;
 
 void init() {
     cin.tie(nullptr);
@@ -25,46 +20,46 @@ void init() {
 
 class PlanetQueriesI {
 public:
-    lli n = 0, nq = 0;
-    vector<lli> dest;
-    vector<pii> q;
-    vector<vector<lli>> lift;
-
+    static const lli MAXN = 2e5 + 5;
+    static const lli MAXLOG = 31; // log2(10^9) ~ 30
+    
+    lli n = 0, q = 0;
+    lli lift[MAXN][MAXLOG];
+    
     void run() {
-        cin >> n >> nq;
-        dest.resize(n+1);
-        q.resize(nq);
-        for (lli i = 1; i <= n; i++) cin >> dest[i];
-        lli maxJumps = 0;
-        for (lli i = 0; i < nq; i++) {
-            cin >> q[i].first >> q[i].second;
-            maxJumps = max(maxJumps, static_cast<lli>(log2(q[i].second)+1));
-        }
-        maxJumps = max(maxJumps, 1LL);
+        cin >> n >> q;
 
-        lift.resize(n+1, vector<lli>(maxJumps, 0));
+        // Initialize the lift table
         for (lli i = 1; i <= n; i++) {
-            lift[i][0] = dest[i];
+            cin >> lift[i][0];
         }
-        for (lli jump = 1; jump < maxJumps; jump++) {
+        
+        // Precompute the binary lifting table
+        for (lli j = 1; j < MAXLOG; j++) {
             for (lli i = 1; i <= n; i++) {
-                lift[i][jump] = lift[lift[i][jump-1]][jump-1];
+                lift[i][j] = lift[lift[i][j-1]][j-1];
             }
         }
-
-        for (auto [st, j]: q) {
-            auto fl = st;
-            for (lli b = 0; b < maxJumps; b++) {
-                if ((j >> b) & 1) fl = lift[fl][b];
+        
+        // Process queries
+        for (lli i = 0; i < q; i++) {
+            lli x, k;
+            cin >> x >> k;
+            
+            for (lli j = 0; j < MAXLOG; j++) {
+                if (k & (1LL << j)) {
+                    x = lift[x][j];
+                }
             }
-            cout << fl << '\n';
+            
+            cout << x << '\n';
         }
     }
-
 };
 
-int main(int argc, char const *argv[]) {
+int main() {
     init();
-    auto s = PlanetQueriesI();
-    s.run();
+    PlanetQueriesI solution;
+    solution.run();
+    return 0;
 }
